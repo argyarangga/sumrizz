@@ -1,5 +1,6 @@
 package com.compose.productcapstone
 
+import android.content.Intent
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -19,25 +20,44 @@ import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.compose.productcapstone.ui.theme.ProductCapstoneTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
+import android.os.Bundle
+import android.util.Log
+import androidx.activity.compose.setContent
+import androidx.compose.ui.platform.LocalContext
+import com.compose.productcapstone.data.response.SummarizeResponse
+import com.compose.productcapstone.data.response.SummarizeResult
+import com.compose.productcapstone.data.retrofit.ApiConfig
+import retrofit2.Response
+import java.net.SocketTimeoutException
+
+class MainActivity : androidx.activity.ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            AppContent()
+        }
+    }
+}
 
 @OptIn(ExperimentalComposeUiApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun AppContent() {
     var text by remember { mutableStateOf(TextFieldValue("")) }
     val keyboardController = LocalSoftwareKeyboardController.current
-    val options1 = listOf("Option 1", "Option 2")
-    var selectedOption1 by remember { mutableStateOf(options1.first())}
+    val options1 = listOf("text", "link")
+    var selectedType by remember { mutableStateOf(options1.first()) }
     var isDialogVisible by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -46,9 +66,10 @@ fun AppContent() {
     ) {
         MultiSelector(
             options = options1,
-            selectedOption = selectedOption1,
+            selectedOption = selectedType,
             onOptionSelect = { option ->
-                selectedOption1 = option
+                selectedType = option
+                Log.d("AppContent", "SelectedType changed: $selectedType")
             },
             modifier = Modifier
                 .padding(all = 16.dp)
@@ -60,7 +81,7 @@ fun AppContent() {
 
         OutlinedTextField(
             value = text,
-            label = { Text(text = "Enter Your Name") },
+            label = { Text(text = "Input Text") },
             onValueChange = {
                 text = it
             },
@@ -75,8 +96,12 @@ fun AppContent() {
 
         Button(
             onClick = {
-                keyboardController?.hide()
-                isDialogVisible = true
+                if (options1.contains(selectedType)) {
+                    keyboardController?.hide()
+                    isDialogVisible = true
+                } else {
+                    //
+                }
             },
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -84,27 +109,63 @@ fun AppContent() {
         }
 
         if (isDialogVisible) {
-                SendDialog(
-                    onDismissRequest = { isDialogVisible = false },
-                    onOption1Click = {
-                        // Handle Option 1 click
-                        isDialogVisible = false
-                    },
-                    onOption2Click = {
-                        // Handle Option 2 click
-                        isDialogVisible = false
+            SendDialog(
+                onDismissRequest = { isDialogVisible = false },
+                onOptionClick = { selectedLanguage ->
+                    coroutineScope.launch {
+                        try {
+                            Log.d("SelectedType", "Selected type: $selectedType")
+                            val resultResponse = callAPI(selectedType, selectedLanguage, text.text)
+                            context.startActivity(Intent(context, ResultActivity::class.java).apply {
+                                putExtra("result", resultResponse)
+                            })
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            isDialogVisible = false
+                            text = TextFieldValue("")
+                            selectedType = ""
+                        }
                     }
-                )
-            }
+                }
+            )
         }
     }
+}
+
+suspend fun callAPI(
+    type: String,
+    language: String,
+    source: String
+): String? {
+    return try {
+        val apiService = ApiConfig.getApiService()
+        val response: Response<SummarizeResult> = apiService.result(SummarizeResponse(type, language, source))
+        if (response.isSuccessful) {
+            response.body()?.body
+        } else {
+            val errorMessage = response.errorBody()?.string() ?: "Unknown error"
+            Log.e("API", "Error response: $errorMessage")
+            null
+        }
+    } catch (e: SocketTimeoutException) {
+        Log.e("API", "Timeout during API call", e)
+        null
+    } catch (e: Exception) {
+        Log.e("API", "Exception during API call", e)
+        null
+    }
+}
+
+
+
 
 @Composable
 fun SendDialog(
     onDismissRequest: () -> Unit,
-    onOption1Click: () -> Unit,
-    onOption2Click: () -> Unit
+    onOptionClick: (selectedLanguage: String) -> Unit
 ) {
+    val coroutineScope = rememberCoroutineScope()
+
     Dialog(onDismissRequest = { onDismissRequest() }) {
         Card(
             modifier = Modifier
@@ -115,7 +176,7 @@ fun SendDialog(
                 modifier = Modifier
                     .padding(16.dp)
             ) {
-                Text("Choose an option", style = MaterialTheme.typography.headlineSmall)
+                Text("Choose the language", style = MaterialTheme.typography.headlineSmall)
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -124,21 +185,29 @@ fun SendDialog(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Button(
-                        onClick = onOption1Click,
+                        onClick = {
+                            coroutineScope.launch {
+                                onOptionClick("en")
+                            }
+                        },
                         modifier = Modifier
                             .weight(1f)
                             .padding(end = 8.dp)
                     ) {
-                        Text("Opt1")
+                        Text("English")
                     }
 
                     Button(
-                        onClick = onOption2Click,
+                        onClick = {
+                            coroutineScope.launch {
+                                onOptionClick("id")
+                            }
+                        },
                         modifier = Modifier
                             .weight(1f)
                             .padding(start = 8.dp)
                     ) {
-                        Text("Opt2")
+                        Text("Indonesia")
                     }
                 }
             }
@@ -365,38 +434,6 @@ enum class MultiSelectorOption {
     Option,
     Background,
 }
-
-//@Composable
-//fun SendDialog(
-//    onDismissRequest: () -> Unit,
-//    onOption1Click: () -> Unit,
-//    onOption2Click: () -> Unit
-//) {
-//    Dialog(onDismissRequest = { onDismissRequest() }) {
-//        Card(
-//            modifier = Modifier
-//                .fillMaxWidth()
-//                .height(200.dp)
-//                .padding(16.dp),
-//            shape = RoundedCornerShape(16.dp),
-//        ) {
-//            Column(
-//                modifier = Modifier
-//                    .fillMaxSize(),
-//                verticalArrangement = Arrangement.Center,
-//                horizontalAlignment = Alignment.CenterHorizontally,
-//            ) {
-//                Text(
-//                    text = "This is a minimal dialog",
-//                    modifier = Modifier
-//                        .fillMaxSize()
-//                        .wrapContentSize(Alignment.Center),
-//                    textAlign = TextAlign.Center,
-//                )
-//            }
-//        }
-//    }
-//}
 
 @Preview(showBackground = true)
 @Composable

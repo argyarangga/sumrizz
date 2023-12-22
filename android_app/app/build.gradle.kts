@@ -70,4 +70,10 @@ dependencies {
     implementation ("androidx.compose.ui:ui:1.5.4")
     implementation ("androidx.activity:activity-compose:1.8.1")
     implementation ("androidx.compose.foundation:foundation-layout:1.5.4")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.3")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.10")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.3")
+    implementation ("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation ("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation ("com.squareup.okhttp3:logging-interceptor:4.9.1")
 }
