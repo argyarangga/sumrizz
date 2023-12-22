@@ -18,3 +18,7 @@ This project is designed with students in mind, aiming to help them efficiently 
 This repository consists of several directories. Here are simple explanations of each directory.
 - The `android_app` folder consists of resources used by our Android Development team for building the application.
 - The `machine_learning` folder consists of resources used by our Machine Learning team to build the model, and the process of model deployment in the cloud.
+
+# Application Screenshot
+![Screenshot 2023-12-22 085130](https://github.com/argyarangga/sumrizz/assets/100682961/00bb5379-c898-49f9-bf18-f2d757a607af)
+![Screenshot 2023-12-22 132514_0](https://github.com/argyarangga/sumrizz/assets/100682961/6be4ce0e-82ff-4b0a-a11f-2878c38806da)
